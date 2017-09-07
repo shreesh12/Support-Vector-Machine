@@ -1,0 +1,72 @@
+#Load all the required packages
+library(titanic)
+library(rpart.plot)
+library(InformationValue)
+library(rpart)
+library(randomForest)
+library(DAAG)
+library(gmodels)
+library(Hmisc)
+library(pROC)
+library(ResourceSelection)
+library(car)
+library(caret)
+library(dplyr)
+
+#Get the working directory
+getwd()
+
+#Change the working directory to the folder where your dataset is present
+setwd("C:\\YYYYYY\\AMMA 2017\\Data\\data_2017") 
+
+#Read the dataset into a data-frame
+titanic_main <- read.csv('train.csv')
+
+#Impute the mean into the NA's occuring in the dataset
+titanic_main$Age[is.na(titanic_main$Age)] <- mean(titanic_main$Age, na.rm = TRUE)
+summary(titanic_main) 
+
+#Setting the seed for reproducibility. Same random number dataset will be used throughout
+set.seed(1234)
+
+#Generate a new column in the dataset and insert random deviates
+titanic_main$rand <- runif(nrow(titanic_main))
+
+# Split the data into training and test sets
+titanic_train <- titanic_main[titanic_main$rand <= 0.7,] #Training dataset
+titanic_test <- titanic_main[titanic_main$rand > 0.7,]   #Test dataset
+
+#Determine the no of rows for both datasets
+nrow(titanic_train)
+nrow(titanic_test)  
+
+View(titanic_train)
+
+
+titanic_train$Age[is.na(titanic_train$Age)] <- 29.7
+
+titanic_train$Survived <- titanic_train$Survived
+
+rf = randomForest(Survived ~ Pclass+Sex+Age, data = titanic_train, mtry = 2, importance = TRUE) 
+
+print(rf)
+
+summary(rf)
+
+
+titanic_train$Survivedpred = ifelse(titanic_train$prob>=.5,'pred_yes','pred_no')
+table(titanic_train$Survivedpred,titanic_train$Survived)
+
+accuracy_train <- (322+179)/626 #80.03
+
+install.packages("e1071")
+library("e1071")
+
+SVM_FINAL = svm(formula = Survived ~ Pclass + Sex + Age + SibSp, data = titanic_train, mtry=2, importance=TRUE)
+print(SVM_FINAL)
+titanic_train$svmprob = predict(SVM_FINAL, type=c("response"))
+titanic_train$svmpred = ifelse(titanic_train$svmprob >=.5,'pred_yes','pred_no') #not required if Survived is as.factor
+View(titanic_train)
+table(titanic_train$svmprob, titanic_train$Survived)
+
+accuracy_svm <- (352+163)/(352+163+76+31) #82.79%
